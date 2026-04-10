@@ -7,8 +7,10 @@ plugins {
 
 android {
     namespace = "com.elmdiag.elm_obd2"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Must be ≥31 for android:attr/lStar (Material 3 / plugin resources).
+    // Plugins such as printing and flutter_bluetooth_serial link against it in release.
+    compileSdk = 34
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11

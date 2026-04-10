@@ -1,7 +1,19 @@
+import com.android.build.gradle.LibraryExtension
+
 allprojects {
     repositories {
         google()
         mavenCentral()
+    }
+}
+
+// Flutter plugins ship their own android {} blocks; many still use a low compileSdk,
+// which breaks release AAPT linking (e.g. android:attr/lStar requires API 31+).
+subprojects {
+    afterEvaluate {
+        extensions.findByType(LibraryExtension::class.java)?.apply {
+            compileSdk = 34
+        }
     }
 }
 
