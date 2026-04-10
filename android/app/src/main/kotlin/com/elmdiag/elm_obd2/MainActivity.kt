@@ -1,0 +1,5 @@
+package com.elmdiag.elm_obd2
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()
