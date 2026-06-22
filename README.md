@@ -2,7 +2,7 @@
 
 An Android app that connects to an ELM327 Bluetooth OBD2 adapter and runs AI-driven diagnostic sessions using **Gemini 2.0 Flash**. The app behaves like an expert mechanic — it reads fault codes, forms competing hypotheses, prescribes specific sensor tests, collects real data from the vehicle, and produces an evidence-based diagnosis with recommended actions.
 
-[Screenshots](#screenshots) · [Download APK](https://github.com/msamoeed/elm-obd2/releases)
+[The Diagnostic Journey](https://msamoeed.github.io/elm-obd2/) · [Screenshots](#screenshots) · [Download APK](https://github.com/msamoeed/elm-obd2/releases)
 
 ---
 
@@ -247,6 +247,8 @@ RECORD_AUDIO  (Gemini Live voice narration)
 ---
 
 ## Screenshots
+
+> **Interactive tour:** See [The Diagnostic Journey](https://msamoeed.github.io/elm-obd2/) — a full visual walkthrough of the app flow (hosted on GitHub Pages).
 
 <details>
 <summary><strong>Show app screenshots</strong></summary>

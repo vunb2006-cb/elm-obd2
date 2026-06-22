@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>ELM OBD2 Diagnostics - The Diagnostic Journey</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary-fixed-dim": "#ffba20",
+            "inverse-primary": "#7c5800",
+            "background": "#131313",
+            "outline": "#9e8f78",
+            "tertiary-container": "#c7c4c4",
+            "surface-dim": "#131313",
+            "on-surface": "#e5e2e1",
+            "secondary-container": "#af8d11",
+            "surface-container-lowest": "#0e0e0e",
+            "secondary": "#e9c349",
+            "on-secondary-fixed": "#241a00",
+            "on-tertiary-fixed": "#1c1b1b",
+            "on-primary-fixed-variant": "#5e4200",
+            "error-container": "#93000a",
+            "surface-tint": "#ffba20",
+            "surface-container": "#201f1f",
+            "secondary-fixed": "#ffe088",
+            "surface-container-low": "#1c1b1b",
+            "surface-container-high": "#2a2a2a",
+            "on-error": "#690005",
+            "surface-variant": "#353534",
+            "on-surface-variant": "#d5c4ab",
+            "primary-fixed": "#ffdea8",
+            "surface-bright": "#3a3939",
+            "on-tertiary-fixed-variant": "#474746",
+            "on-primary-container": "#6b4c00",
+            "inverse-on-surface": "#313030",
+            "surface-container-highest": "#353534",
+            "on-background": "#e5e2e1",
+            "inverse-surface": "#e5e2e1",
+            "outline-variant": "#514532",
+            "on-secondary": "#3c2f00",
+            "on-secondary-fixed-variant": "#574500",
+            "error": "#ffb4ab",
+            "surface": "#131313",
+            "on-primary-fixed": "#271900",
+            "primary": "#ffdca1",
+            "on-secondary-container": "#342800",
+            "tertiary-fixed-dim": "#c8c6c5",
+            "on-error-container": "#ffdad6",
+            "on-tertiary": "#313030",
+            "tertiary-fixed": "#e5e2e1",
+            "tertiary": "#e3e0df",
+            "primary-container": "#ffb800",
+            "secondary-fixed-dim": "#e9c349",
+            "on-tertiary-container": "#525151",
+            "on-primary": "#412d00"
+          },
+          borderRadius: {
+            DEFAULT: "0.125rem",
+            lg: "0.25rem",
+            xl: "0.5rem",
+            full: "0.75rem"
+          },
+          spacing: {
+            base: "8px",
+            "section-gap": "80px",
+            "margin-mobile": "20px",
+            "margin-desktop": "64px",
+            gutter: "24px"
+          },
+          fontFamily: {
+            "body-lg": ["Inter"],
+            "headline-sm": ["Montserrat"],
+            "display-lg-mobile": ["Montserrat"],
+            "body-md": ["Inter"],
+            "headline-md": ["Montserrat"],
+            "label-sm": ["Inter"],
+            "label-md": ["Inter"],
+            "display-lg": ["Montserrat"]
+          },
+          fontSize: {
+            "body-lg": ["18px", { lineHeight: "28px", fontWeight: "400" }],
+            "headline-sm": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+            "display-lg-mobile": ["32px", { lineHeight: "40px", letterSpacing: "-0.01em", fontWeight: "800" }],
+            "body-md": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+            "headline-md": ["24px", { lineHeight: "32px", fontWeight: "700" }],
+            "label-sm": ["12px", { lineHeight: "16px", fontWeight: "500" }],
+            "label-md": ["14px", { lineHeight: "20px", letterSpacing: "0.05em", fontWeight: "600" }],
+            "display-lg": ["48px", { lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "800" }]
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #131313;
+      color: #e5e2e1;
+      overflow-x: hidden;
+    }
+    .technical-grid {
+      background-image:
+        linear-gradient(to right, rgba(255, 184, 0, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 184, 0, 0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .glow-amber {
+      box-shadow: 0 0 20px rgba(255, 184, 0, 0.2);
+    }
+    .timeline-track {
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #ffb800, #ffb800, transparent);
+      position: relative;
+    }
+    .timeline-node {
+      width: 12px;
+      height: 12px;
+      background: #ffb800;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #ffb800;
+    }
+    .glass-panel {
+      background: rgba(26, 26, 26, 0.8);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(51, 51, 51, 1);
+    }
+    .mobile-frame {
+      border: 4px solid #1a1a1a;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      transition: transform 0.3s ease;
+    }
+    .mobile-frame:hover {
+      transform: translateY(-8px);
+    }
+    @media (max-width: 1024px) {
+      .journey-grid {
+        grid-template-columns: 1fr !important;
+      }
+      .timeline-track {
+        display: none;
+      }
+      .timeline-node {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body class="font-body-md antialiased min-h-screen flex flex-col">
+  <header class="fixed top-0 left-0 right-0 z-50 bg-background border-b border-outline-variant/30">
+    <div class="flex justify-between items-center px-margin-mobile md:px-margin-desktop py-4 w-full max-w-7xl mx-auto">
+      <div class="flex items-center gap-base">
+        <span class="material-symbols-outlined text-primary text-headline-md">directions_car</span>
+        <h1 class="text-headline-md font-bold text-primary">ELM OBD2 Diagnostics</h1>
+      </div>
+      <nav class="hidden md:flex gap-8 items-center">
+        <a class="text-primary font-bold text-label-md" href="#journey">The Journey</a>
+        <a class="text-on-surface-variant hover:text-primary transition-colors text-label-md" href="https://github.com/msamoeed/elm-obd2">GitHub</a>
+        <a class="text-on-surface-variant hover:text-primary transition-colors text-label-md" href="https://github.com/msamoeed/elm-obd2#readme">Docs</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="journey" class="flex-grow pt-32 pb-margin-desktop px-margin-mobile md:px-margin-desktop relative overflow-hidden technical-grid">
+    <div class="absolute top-0 left-0 w-full h-full pointer-events-none">
+      <div class="absolute top-1/4 -left-32 w-96 h-96 bg-primary-container opacity-5 rounded-full blur-[120px]"></div>
+      <div class="absolute bottom-1/4 -right-32 w-96 h-96 bg-primary opacity-5 rounded-full blur-[120px]"></div>
+    </div>
+
+    <div class="max-w-4xl mx-auto text-center mb-16 relative z-10">
+      <span class="text-primary font-label-md tracking-widest uppercase mb-4 block">Process Visualization</span>
+      <h2 class="text-display-lg-mobile md:text-display-lg font-display-lg text-on-surface mb-4">The Diagnostic Journey</h2>
+      <p class="text-body-lg text-on-surface-variant">Master your vehicle's health: from connection to AI-powered insights.</p>
+    </div>
+
+    <div class="relative z-10 w-full mb-section-gap max-w-7xl mx-auto">
+      <div class="absolute top-1/2 left-0 w-full timeline-track -translate-y-1/2 hidden lg:block"></div>
+      <div class="journey-grid grid grid-cols-1 lg:grid-cols-4 gap-gutter w-full relative">
+
+        <!-- 01 Connection -->
+        <div class="flex flex-col items-center">
+          <div class="timeline-node mb-8 relative z-20 hidden lg:block"></div>
+          <div class="glass-panel p-6 rounded-xl w-full flex flex-col gap-6">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="material-symbols-outlined text-primary-container">bluetooth</span>
+              <h3 class="font-headline-sm text-primary">01. Connection</h3>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="mobile-frame aspect-[0.45]">
+                <img class="w-full h-full object-cover object-top" alt="Home screen" src="screenshots/Screenshot_1782149274.png"/>
+              </div>
+              <div class="mobile-frame aspect-[0.47]">
+                <img class="w-full h-full object-cover object-top" alt="Connect to ELM327" src="screenshots/Screenshot_1782149283.png"/>
+              </div>
+            </div>
+            <p class="text-label-sm text-on-surface-variant text-center px-2">Pair your ELM327 over Bluetooth Classic, or simulate a vehicle with no hardware.</p>
+          </div>
+        </div>
+
+        <!-- 02 Setup -->
+        <div class="flex flex-col items-center">
+          <div class="timeline-node mb-8 relative z-20 hidden lg:block"></div>
+          <div class="glass-panel p-6 rounded-xl w-full flex flex-col gap-6">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="material-symbols-outlined text-primary-container">settings_suggest</span>
+              <h3 class="font-headline-sm text-primary">02. Setup</h3>
+            </div>
+            <div class="flex justify-center">
+              <div class="mobile-frame w-2/3 aspect-[0.47]">
+                <img class="w-full h-full object-cover object-top" alt="Vehicle intake form" src="screenshots/Screenshot_1782152385.png"/>
+              </div>
+            </div>
+            <p class="text-label-sm text-on-surface-variant text-center px-2">Enter vehicle details, describe symptoms, and start the diagnostic session.</p>
+          </div>
+        </div>
+
+        <!-- 03 Diagnostics -->
+        <div class="flex flex-col items-center">
+          <div class="timeline-node mb-8 relative z-20 hidden lg:block"></div>
+          <div class="glass-panel p-6 rounded-xl w-full flex flex-col gap-6">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="material-symbols-outlined text-primary-container">speed</span>
+              <h3 class="font-headline-sm text-primary">03. Diagnostics</h3>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="mobile-frame aspect-[0.47]">
+                <img class="w-full h-full object-cover object-top" alt="Test prescribed with live conditions" src="screenshots/Screenshot_1782152549.png"/>
+              </div>
+              <div class="mobile-frame aspect-[0.47]">
+                <img class="w-full h-full object-cover object-top" alt="Live sensor chart during test" src="screenshots/Screenshot_1782152583.png"/>
+              </div>
+            </div>
+            <p class="text-label-sm text-on-surface-variant text-center px-2">Structured OBD2 tests with live condition checks and real-time PID charts.</p>
+          </div>
+        </div>
+
+        <!-- 04 AI Insights -->
+        <div class="flex flex-col items-center">
+          <div class="timeline-node mb-8 relative z-20 hidden lg:block"></div>
+          <div class="glass-panel p-6 rounded-xl w-full flex flex-col gap-6">
+            <div class="flex items-center gap-3 mb-2">
+              <span class="material-symbols-outlined text-primary-container">psychology</span>
+              <h3 class="font-headline-sm text-primary">04. AI Insights</h3>
+            </div>
+            <div class="grid grid-cols-2 grid-rows-2 gap-2">
+              <div class="mobile-frame aspect-[0.47]">
+                <img class="w-full h-full object-cover object-top" alt="AI analyzing fault codes" src="screenshots/Screenshot_1782152423.png"/>
+              </div>
+              <div class="mobile-frame aspect-[0.47]">
+                <img class="w-full h-full object-cover object-top" alt="AI follow-up questions" src="screenshots/Screenshot_1782152467.png"/>
+              </div>
+              <div class="mobile-frame aspect-[0.47]">
+                <img class="w-full h-full object-cover object-top" alt="Driver answers submitted" src="screenshots/Screenshot_1782152509.png"/>
+              </div>
+              <div class="mobile-frame aspect-[0.47]">
+                <img class="w-full h-full object-cover object-top" alt="Bluetooth permission prompt" src="screenshots/Screenshot_1782152346.png"/>
+              </div>
+            </div>
+            <p class="text-label-sm text-on-surface-variant text-center px-2">Gemini forms hypotheses, asks clarifying questions, and concludes with evidence.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="flex flex-col items-center justify-center pt-8 pb-12 relative z-10">
+      <a
+        class="bg-primary-container text-on-primary font-bold px-12 py-4 rounded-full text-headline-sm hover:opacity-90 transition-all transform active:scale-95 glow-amber"
+        href="https://github.com/msamoeed/elm-obd2/releases"
+      >
+        Download the App
+      </a>
+      <p class="mt-4 text-on-surface-variant font-label-sm opacity-60">Compatible with OBD2-compliant vehicles (1996+) · Android only</p>
+    </div>
+  </main>
+
+  <footer class="w-full border-t border-outline-variant bg-surface-container-lowest">
+    <div class="max-w-7xl mx-auto px-margin-mobile md:px-margin-desktop py-base flex flex-col md:flex-row justify-between items-center gap-base">
+      <div class="flex items-center gap-4">
+        <span class="material-symbols-outlined text-primary text-headline-sm">directions_car</span>
+        <p class="text-label-sm text-on-surface-variant">© 2026 ELM OBD2 Diagnostics. Master your vehicle's health.</p>
+      </div>
+      <div class="flex gap-margin-mobile">
+        <a class="text-label-sm text-on-surface-variant hover:text-primary-fixed-dim transition-all" href="https://github.com/msamoeed/elm-obd2">GitHub</a>
+        <a class="text-label-sm text-on-surface-variant hover:text-primary-fixed-dim transition-all" href="https://github.com/msamoeed/elm-obd2/releases">Releases</a>
+        <a class="text-label-sm text-on-surface-variant hover:text-primary-fixed-dim transition-all" href="https://github.com/msamoeed/elm-obd2#readme">README</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    window.addEventListener('mousemove', (e) => {
+      const grid = document.querySelector('.technical-grid');
+      if (!grid) return;
+      const x = e.clientX / window.innerWidth;
+      const y = e.clientY / window.innerHeight;
+      grid.style.backgroundPosition = `${x * 10}px ${y * 10}px`;
+    });
+  </script>
+</body>
+</html>
