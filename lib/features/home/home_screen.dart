@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/diagnosis/models/diagnostic_session.dart';
 import '../../core/storage/session_repository.dart';
 import '../../features/session/session_provider.dart';
+import '../../shared/widgets/app_logo.dart';
 import '../../shared/theme.dart';
 import '../../shared/widgets/loading_state.dart';
 import '../../shared/widgets/severity_badge.dart';
@@ -51,8 +52,7 @@ class HomeScreen extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.car_repair,
-                    size: 40, color: AppTheme.accent),
+                const AppLogo(size: 48),
                 const SizedBox(height: 12),
                 Text(
                   'AI-Powered\nVehicle Diagnostics',

@@ -9,7 +9,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
-        android:label="elm_obd2"
+        android:label="ELM OBD2 Diagnostics"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
