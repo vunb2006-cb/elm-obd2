@@ -1,0 +1,103 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Releases need permission to create/update GitHub Releases.
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Prepare release artifact
+        run: |
+          APK=$(find build/app/outputs -name 'app-release.apk' -print -quit)
+          if [ -z "$APK" ]; then
+            echo "Could not find app-release.apk"
+            exit 1
+          fi
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          mkdir -p dist
+          cp "$APK" "dist/elm-obd2-${VERSION}.apk"
+          echo "APK_PATH=dist/elm-obd2-${VERSION}.apk" >> "$GITHUB_ENV"
+          echo "APP_VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: elm-obd2-apk-${{ github.run_number }}
+          path: dist/*.apk
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Publish continuous pre-release (main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: continuous
+          name: Continuous build
+          prerelease: true
+          make_latest: true
+          body: |
+            Latest APK built automatically from the `main` branch.
+
+            - **Version:** ${{ env.APP_VERSION }}
+            - **Commit:** ${{ github.sha }}
+            - **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            > Users must add their own Gemini API key in the app Settings.
+          files: ${{ env.APK_PATH }}
+          generate_release_notes: false
+
+      - name: Publish versioned release (tag)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          prerelease: false
+          make_latest: true
+          body: |
+            Release APK for **${{ github.ref_name }}**.
+
+            - **App version:** ${{ env.APP_VERSION }}
+            - **Commit:** ${{ github.sha }}
+
+            > Users must add their own Gemini API key in the app Settings.
+          files: ${{ env.APK_PATH }}
+          generate_release_notes: true

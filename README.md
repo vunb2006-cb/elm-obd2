@@ -2,57 +2,7 @@
 
 An Android app that connects to an ELM327 Bluetooth OBD2 adapter and runs AI-driven diagnostic sessions using **Gemini 2.0 Flash**. The app behaves like an expert mechanic — it reads fault codes, forms competing hypotheses, prescribes specific sensor tests, collects real data from the vehicle, and produces an evidence-based diagnosis with recommended actions.
 
----
-
-## Screenshots
-
-### Home
-
-Start a new diagnostic session or resume past sessions from the home screen.
-
-![Home screen](screenshots/Screenshot_1782149274.png)
-
-### Connect
-
-Pair your ELM327 in Android Bluetooth settings, then select it here. No hardware? Use **Simulate Vehicle** to run the full diagnostic flow against a virtual ECU.
-
-![Connect screen](screenshots/Screenshot_1782149283.png)
-
-### Permissions
-
-On first connect, Android requests location permission — required by the OS for Bluetooth device discovery on many Android versions.
-
-![Location permission](screenshots/Screenshot_1782152346.png)
-
-### Vehicle intake
-
-Enter vehicle details, describe the driver complaint, and optionally note recent repairs before the session begins.
-
-![Vehicle information form](screenshots/Screenshot_1782152385.png)
-
-### AI hypothesis
-
-After reading DTCs and freeze-frame data, Gemini forms competing hypotheses before prescribing the first test.
-
-![AI analyzing fault codes](screenshots/Screenshot_1782152423.png)
-
-### Follow-up questions
-
-The AI can ask targeted questions to narrow down symptoms before selecting tests.
-
-![AI follow-up questions](screenshots/Screenshot_1782152509.png)
-
-### Test prescribed
-
-Each test shows plain-English instructions, live condition validation against OBD2 data, and a **Start Test** button once conditions are met.
-
-![Warm idle baseline test ready](screenshots/Screenshot_1782152549.png)
-
-### Live sensor collection
-
-During a test, the app polls PIDs and displays a real-time chart with toggleable sensor traces and a progress timer.
-
-![Live sensor dashboard during test](screenshots/Screenshot_1782152583.png)
+[Screenshots](#screenshots) · [Download APK](https://github.com/msamoeed/elm-obd2/releases)
 
 ---
 
@@ -293,3 +243,53 @@ RECORD_AUDIO  (Gemini Live voice narration)
 | `web_socket_channel` | Gemini Live WebSocket |
 | `permission_handler` | Runtime Bluetooth + location permissions |
 | `fl_chart` | Real-time sensor charts during tests and live monitor |
+
+---
+
+## Screenshots
+
+<details>
+<summary><strong>Show app screenshots</strong></summary>
+
+<br>
+
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <img src="screenshots/Screenshot_1782149274.png" width="180" alt="Home screen" />
+      <br><sub><b>Home</b></sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="screenshots/Screenshot_1782149283.png" width="180" alt="Connect screen" />
+      <br><sub><b>Connect</b></sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="screenshots/Screenshot_1782152346.png" width="180" alt="Location permission" />
+      <br><sub><b>Permissions</b></sub>
+    </td>
+    <td align="center" width="25%">
+      <img src="screenshots/Screenshot_1782152385.png" width="180" alt="Vehicle intake form" />
+      <br><sub><b>Intake</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="screenshots/Screenshot_1782152423.png" width="180" alt="AI analyzing fault codes" />
+      <br><sub><b>AI hypothesis</b></sub>
+    </td>
+    <td align="center">
+      <img src="screenshots/Screenshot_1782152509.png" width="180" alt="AI follow-up questions" />
+      <br><sub><b>Follow-up questions</b></sub>
+    </td>
+    <td align="center">
+      <img src="screenshots/Screenshot_1782152549.png" width="180" alt="Test prescribed" />
+      <br><sub><b>Test prescribed</b></sub>
+    </td>
+    <td align="center">
+      <img src="screenshots/Screenshot_1782152583.png" width="180" alt="Live sensor dashboard" />
+      <br><sub><b>Live collection</b></sub>
+    </td>
+  </tr>
+</table>
+
+</details>
