@@ -47,7 +47,7 @@ class _IntakeScreenState extends ConsumerState<IntakeScreen> {
               ? null
               : _repairsCtrl.text.trim(),
         );
-    context.go('/session');
+    context.push('/session');
   }
 
   @override

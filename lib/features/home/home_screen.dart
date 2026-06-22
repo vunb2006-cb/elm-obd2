@@ -33,7 +33,7 @@ class HomeScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => context.go('/settings'),
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -68,7 +68,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
-                  onPressed: () => context.go('/connect'),
+                  onPressed: () => context.push('/connect'),
                   icon: const Icon(Icons.bluetooth),
                   label: const Text('Start New Diagnostic'),
                 ),
@@ -266,7 +266,7 @@ class _ResumeBanner extends ConsumerWidget {
                       ref
                           .read(sessionProvider.notifier)
                           .resumeFromCheckpoint(session);
-                      context.go('/session');
+                      context.push('/session');
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.accent,

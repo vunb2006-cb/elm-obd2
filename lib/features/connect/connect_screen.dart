@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -42,7 +43,7 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
     final ok =
         await ref.read(connectNotifierProvider.notifier).connect(device.address);
     if (!mounted) return;
-    if (ok) context.go('/intake');
+    if (ok) context.push('/intake');
   }
 
   Future<void> _disconnect() async {
@@ -58,7 +59,7 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
     if (profile == null) return;
     await startSimulating(ref, profile);
     if (!mounted) return;
-    context.go('/intake');
+    context.push('/intake');
   }
 
   @override
@@ -139,7 +140,7 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () => context.go('/monitor'),
+                          onPressed: () => context.push('/monitor'),
                           icon: const Icon(Icons.show_chart_rounded,
                               size: 16),
                           label: const Text('Live Monitor'),
@@ -153,7 +154,7 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => context.go('/intake'),
+                          onPressed: () => context.push('/intake'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.accentGreen,
                             foregroundColor: Colors.black,
@@ -174,7 +175,7 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
                   ref.read(connectNotifierProvider.notifier).clearError(),
             ),
 
-          if (!isConnected && !isSimulating)
+          if (kDebugMode && !isConnected && !isSimulating)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: SizedBox(
@@ -251,7 +252,7 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
                       isConnecting: isThisConnecting,
                       isDisabled: isAnotherConnecting || isOtherDeviceConnected,
                       onTap: isThisDeviceConnected
-                          ? () => context.go('/intake')
+                          ? () => context.push('/intake')
                           : (isAnotherConnecting || isOtherDeviceConnected)
                               ? null
                               : () => _connect(d),

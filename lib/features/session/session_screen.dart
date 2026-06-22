@@ -41,7 +41,7 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
     // Navigate to diagnosis screen when concluded
     ref.listen(sessionProvider, (_, next) {
       if (next.phase == SessionPhase.concluded && next.finalDiagnosis != null) {
-        context.go('/diagnosis');
+        context.pushReplacement('/diagnosis');
       }
     });
 

@@ -86,11 +86,11 @@ class _DebugScreenState extends ConsumerState<DebugScreen> {
         title: const Text('OBD Debug'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/connect'),
+          onPressed: () => context.pop(),
         ),
         actions: [
           TextButton.icon(
-            onPressed: () => context.go('/intake'),
+            onPressed: () => context.push('/intake'),
             icon: const Icon(Icons.play_arrow),
             label: const Text('Start Diagnostic'),
           ),
