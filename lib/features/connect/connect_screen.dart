@@ -5,8 +5,11 @@ import 'package:go_router/go_router.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/obd/elm327_connector.dart';
+import '../../core/obd/simulated/fault_profile.dart';
 import '../../shared/theme.dart';
+import '../../shared/widgets/loading_state.dart';
 import 'connect_provider.dart';
+import 'simulator_control_panel.dart';
 
 class ConnectScreen extends ConsumerStatefulWidget {
   const ConnectScreen({super.key});
@@ -19,7 +22,9 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
   @override
   void initState() {
     super.initState();
-    _requestPermissions();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestPermissions();
+    });
   }
 
   Future<void> _requestPermissions() async {
@@ -30,39 +35,60 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
       Permission.location,
     ].request();
     ref.invalidate(bondedDevicesProvider);
+    ref.read(connectNotifierProvider.notifier).clearError();
   }
 
   Future<void> _connect(BluetoothDevice device) async {
-    await ref.read(connectNotifierProvider.notifier).connect(device.address);
+    final ok =
+        await ref.read(connectNotifierProvider.notifier).connect(device.address);
     if (!mounted) return;
-    final connectState = ref.read(connectNotifierProvider);
-    if (connectState is! AsyncError) {
-      context.go('/intake');
-    }
+    if (ok) context.go('/intake');
   }
 
   Future<void> _disconnect() async {
-    await ref.read(connectNotifierProvider.notifier).disconnect();
+    if (ref.read(isSimulatingProvider)) {
+      await stopSimulating(ref);
+    } else {
+      await ref.read(connectNotifierProvider.notifier).disconnect();
+    }
+  }
+
+  Future<void> _startSimulating() async {
+    final profile = await showFaultProfilePicker(context);
+    if (profile == null) return;
+    await startSimulating(ref, profile);
+    if (!mounted) return;
+    context.go('/intake');
   }
 
   @override
   Widget build(BuildContext context) {
-    final devices = ref.watch(bondedDevicesProvider);
+    final devicesAsync = ref.watch(bondedDevicesProvider);
     final connState = ref.watch(connectionStateProvider);
-    final connectOp = ref.watch(connectNotifierProvider);
+    final connectUi = ref.watch(connectNotifierProvider);
     final connectedAddress = ref.watch(lastConnectedAddressProvider);
+    final isSimulating = ref.watch(isSimulatingProvider);
 
     final isConnected = connState.valueOrNull == Elm327State.connected;
-    final isConnecting = connectOp is AsyncLoading;
+    final connectingAddr = connectUi.connectingAddress;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Connect to ELM327'),
+        title: Text(isSimulating ? 'Simulated Vehicle' : 'Connect to ELM327'),
         actions: [
-          if (!isConnected)
+          if (!isConnected && !isSimulating)
             IconButton(
               icon: const Icon(Icons.refresh),
-              onPressed: () => ref.invalidate(bondedDevicesProvider),
+              onPressed: () {
+                ref.invalidate(bondedDevicesProvider);
+                ref.read(connectNotifierProvider.notifier).clearError();
+              },
+            ),
+          if (isSimulating && isConnected)
+            IconButton(
+              icon: const Icon(Icons.tune),
+              tooltip: 'Simulator Controls',
+              onPressed: () => showSimulatorControlPanel(context),
             ),
           if (isConnected)
             TextButton.icon(
@@ -78,7 +104,6 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
         children: [
           _StatusBanner(connState: connState),
 
-          // ── When connected: show a Continue banner ──────────────────────
           if (isConnected)
             Container(
               width: double.infinity,
@@ -90,96 +115,152 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
                 border: Border.all(
                     color: AppTheme.accentGreen.withAlpha(80)),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.check_circle,
-                      color: AppTheme.accentGreen),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'ELM327 ready. Tap Continue to begin diagnostics.',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: AppTheme.accentGreen),
-                    ),
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle,
+                          color: AppTheme.accentGreen),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'ELM327 ready.',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(color: AppTheme.accentGreen),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () => context.go('/intake'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.accentGreen,
-                      foregroundColor: Colors.black,
-                    ),
-                    child: const Text('Continue →'),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.go('/monitor'),
+                          icon: const Icon(Icons.show_chart_rounded,
+                              size: 16),
+                          label: const Text('Live Monitor'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.accentGreen,
+                            side: BorderSide(
+                                color: AppTheme.accentGreen.withAlpha(120)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => context.go('/intake'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accentGreen,
+                            foregroundColor: Colors.black,
+                          ),
+                          child: const Text('Diagnose →'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
-          Expanded(
-            child: devices.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.bluetooth_disabled,
-                        size: 48, color: AppTheme.muted),
-                    const SizedBox(height: 12),
-                    Text('Bluetooth error: $e',
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _requestPermissions,
-                      child: const Text('Grant Permissions'),
-                    ),
-                  ],
+          if (connectUi.errorMessage != null)
+            _ErrorBanner(
+              message: connectUi.errorMessage!,
+              onDismiss: () =>
+                  ref.read(connectNotifierProvider.notifier).clearError(),
+            ),
+
+          if (!isConnected && !isSimulating)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _startSimulating,
+                  icon: const Icon(Icons.smart_toy_outlined, size: 18),
+                  label: const Text('Simulate Vehicle (No Hardware)'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.accent,
+                    side: BorderSide(color: AppTheme.accent.withAlpha(120)),
+                  ),
                 ),
               ),
-              data: (deviceList) => deviceList.isEmpty
-                  ? _EmptyState(onRefresh: _requestPermissions)
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: deviceList.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(height: 8),
-                      itemBuilder: (context, i) {
-                        final d = deviceList[i];
-                        final isElm = _isElmDevice(d.name ?? '');
-                        final isThisDeviceConnected =
-                            isConnected && d.address == connectedAddress;
-                        final isOtherDeviceConnected =
-                            isConnected && d.address != connectedAddress;
-                        return _DeviceTile(
-                          device: d,
-                          isElm: isElm,
-                          isConnected: isThisDeviceConnected,
-                          isDisabled:
-                              isConnecting || isOtherDeviceConnected,
-                          onTap: isThisDeviceConnected
-                              ? () => context.go('/intake')
-                              : (isConnecting || isOtherDeviceConnected)
-                                  ? null
-                                  : () => _connect(d),
-                        );
-                      },
-                    ),
+            ),
+
+          if (isSimulating && !isConnected)
+            const Expanded(
+              child: LoadingState(message: 'Starting virtual ECU…'),
+            ),
+
+          if (isSimulating && isConnected)
+            const Expanded(
+              child: _SimulatingHint(),
+            ),
+
+          if (!isSimulating)
+            Expanded(
+              child: devicesAsync.when(
+              loading: () => const LoadingState(
+                message: 'Loading paired devices…',
+              ),
+              error: (_, __) => const Center(
+                child: Text(
+                  'Something went wrong. Pull to refresh or tap Refresh.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              data: (result) {
+                if (result.hasError) {
+                  return _BluetoothAccessError(
+                    message: result.errorMessage!,
+                    onRetry: _requestPermissions,
+                    onOpenSettings: () async {
+                      await openAppSettings();
+                      ref.invalidate(bondedDevicesProvider);
+                    },
+                  );
+                }
+                final deviceList = result.devices;
+                if (deviceList.isEmpty) {
+                  return _EmptyState(onRefresh: _requestPermissions);
+                }
+                return ListView.separated(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: deviceList.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, i) {
+                    final d = deviceList[i];
+                    final isElm = _isElmDevice(d.name ?? '');
+                    final isThisDeviceConnected =
+                        isConnected && d.address == connectedAddress;
+                    final isOtherDeviceConnected =
+                        isConnected && d.address != connectedAddress;
+                    final isThisConnecting =
+                        connectingAddr != null && d.address == connectingAddr;
+                    final isAnotherConnecting = connectingAddr != null &&
+                        d.address != connectingAddr;
+
+                    return _DeviceTile(
+                      device: d,
+                      isElm: isElm,
+                      isConnected: isThisDeviceConnected,
+                      isConnecting: isThisConnecting,
+                      isDisabled: isAnotherConnecting || isOtherDeviceConnected,
+                      onTap: isThisDeviceConnected
+                          ? () => context.go('/intake')
+                          : (isAnotherConnecting || isOtherDeviceConnected)
+                              ? null
+                              : () => _connect(d),
+                    );
+                  },
+                );
+              },
             ),
           ),
-
-          if (connectOp is AsyncError)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              color: AppTheme.accentRed.withAlpha(30),
-              child: Text(
-                'Connection failed: ${connectOp.error}',
-                style: const TextStyle(color: AppTheme.accentRed),
-                textAlign: TextAlign.center,
-              ),
-            ),
         ],
       ),
     );
@@ -194,6 +275,147 @@ class _ConnectScreenState extends ConsumerState<ConnectScreen> {
   }
 }
 
+class _SimulatingHint extends ConsumerWidget {
+  const _SimulatingHint();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fault = ref.watch(simulatedElm327Provider).ecu.fault;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.smart_toy_outlined,
+                size: 56, color: AppTheme.accent),
+            const SizedBox(height: 16),
+            Text('Virtual ECU running',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(
+              'Scenario: ${fault.label}',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: AppTheme.muted),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () => showSimulatorControlPanel(context),
+              icon: const Icon(Icons.tune, size: 16),
+              label: const Text('Open Simulator Controls'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onDismiss;
+
+  const _ErrorBanner({
+    required this.message,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppTheme.accentRed.withAlpha(28),
+      child: InkWell(
+        onTap: onDismiss,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.error_outline,
+                  color: AppTheme.accentRed, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    color: AppTheme.accentRed,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 20),
+                color: AppTheme.accentRed,
+                onPressed: onDismiss,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BluetoothAccessError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  final VoidCallback onOpenSettings;
+
+  const _BluetoothAccessError({
+    required this.message,
+    required this.onRetry,
+    required this.onOpenSettings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.bluetooth_disabled,
+                size: 56, color: AppTheme.muted),
+            const SizedBox(height: 16),
+            Text(
+              'Bluetooth access needed',
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: AppTheme.muted, height: 1.4),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try again'),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: onOpenSettings,
+              icon: const Icon(Icons.settings, size: 18),
+              label: const Text('Open app settings'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _StatusBanner extends StatelessWidget {
   final AsyncValue<Elm327State> connState;
   const _StatusBanner({required this.connState});
@@ -201,12 +423,12 @@ class _StatusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (text, color) = connState.when(
-      loading: () => ('Checking connection...', AppTheme.muted),
-      error: (_, __) => ('Connection error', AppTheme.accentRed),
+      loading: () => ('Checking connection…', AppTheme.muted),
+      error: (_, __) => ('Connection status unavailable', AppTheme.muted),
       data: (s) => switch (s) {
         Elm327State.connected => ('Connected', AppTheme.accentGreen),
-        Elm327State.connecting => ('Connecting...', AppTheme.accent),
-        Elm327State.initializing => ('Initializing ELM327...', AppTheme.accent),
+        Elm327State.connecting => ('Connecting…', AppTheme.accent),
+        Elm327State.initializing => ('Initializing ELM327…', AppTheme.accent),
         Elm327State.error => ('Connection error', AppTheme.accentRed),
         Elm327State.disconnected => ('Not connected', AppTheme.muted),
       },
@@ -224,8 +446,11 @@ class _StatusBanner extends StatelessWidget {
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 8),
-          Text(text,
-              style: TextStyle(color: color, fontWeight: FontWeight.w500)),
+          Expanded(
+            child: Text(text,
+                style:
+                    TextStyle(color: color, fontWeight: FontWeight.w500)),
+          ),
         ],
       ),
     );
@@ -236,6 +461,7 @@ class _DeviceTile extends StatelessWidget {
   final BluetoothDevice device;
   final bool isElm;
   final bool isConnected;
+  final bool isConnecting;
   final bool isDisabled;
   final VoidCallback? onTap;
 
@@ -243,6 +469,7 @@ class _DeviceTile extends StatelessWidget {
     required this.device,
     required this.isElm,
     required this.isConnected,
+    required this.isConnecting,
     required this.isDisabled,
     required this.onTap,
   });
@@ -275,9 +502,16 @@ class _DeviceTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: isConnected
                 ? AppTheme.accentGreen.withAlpha(12)
-                : AppTheme.surface,
+                : isConnecting
+                    ? AppTheme.accent.withAlpha(10)
+                    : AppTheme.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor),
+            border: Border.all(
+              color: isConnecting
+                  ? AppTheme.accent.withAlpha(100)
+                  : borderColor,
+              width: isConnecting ? 1.5 : 1,
+            ),
           ),
           child: Row(
             children: [
@@ -301,19 +535,35 @@ class _DeviceTile extends StatelessWidget {
                       device.address,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
+                    if (isConnecting) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Connecting…',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.accent,
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              // Status / type badge
               if (isConnected)
                 _chip('Connected', AppTheme.accentGreen)
               else if (isElm)
                 _chip('ELM327', AppTheme.accent),
               const SizedBox(width: 8),
-              Icon(
-                isConnected ? Icons.arrow_forward : Icons.chevron_right,
-                color: isConnected ? AppTheme.accentGreen : AppTheme.muted,
-              ),
+              if (isConnecting)
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2.5),
+                )
+              else
+                Icon(
+                  isConnected ? Icons.arrow_forward : Icons.chevron_right,
+                  color: isConnected ? AppTheme.accentGreen : AppTheme.muted,
+                ),
             ],
           ),
         ),

@@ -36,8 +36,9 @@ class _DebugScreenState extends ConsumerState<DebugScreen> {
     if (cmd.trim().isEmpty) return;
     setState(() => _loading = true);
     try {
-      final response =
-          await ref.read(elm327Provider).sendCommand(cmd.trim().toUpperCase());
+      final response = await ref
+          .read(activeTransportProvider)
+          .sendCommand(cmd.trim().toUpperCase());
       _addLog(cmd.toUpperCase(), response, isError: false);
     } catch (e) {
       _addLog(cmd.toUpperCase(), e.toString(), isError: true);

@@ -46,13 +46,16 @@ class AppTheme {
             letterSpacing: 0.5,
           ),
         ),
-        cardTheme: CardTheme(
+        cardTheme:CardThemeData(
+           
           color: _surface,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: const BorderSide(color: Color(0xFF2A2A30), width: 1),
-          ),
+          
+        )
+          
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(

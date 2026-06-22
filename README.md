@@ -4,10 +4,62 @@ An Android app that connects to an ELM327 Bluetooth OBD2 adapter and runs AI-dri
 
 ---
 
+## Screenshots
+
+### Home
+
+Start a new diagnostic session or resume past sessions from the home screen.
+
+![Home screen](screenshots/Screenshot_1782149274.png)
+
+### Connect
+
+Pair your ELM327 in Android Bluetooth settings, then select it here. No hardware? Use **Simulate Vehicle** to run the full diagnostic flow against a virtual ECU.
+
+![Connect screen](screenshots/Screenshot_1782149283.png)
+
+### Permissions
+
+On first connect, Android requests location permission — required by the OS for Bluetooth device discovery on many Android versions.
+
+![Location permission](screenshots/Screenshot_1782152346.png)
+
+### Vehicle intake
+
+Enter vehicle details, describe the driver complaint, and optionally note recent repairs before the session begins.
+
+![Vehicle information form](screenshots/Screenshot_1782152385.png)
+
+### AI hypothesis
+
+After reading DTCs and freeze-frame data, Gemini forms competing hypotheses before prescribing the first test.
+
+![AI analyzing fault codes](screenshots/Screenshot_1782152423.png)
+
+### Follow-up questions
+
+The AI can ask targeted questions to narrow down symptoms before selecting tests.
+
+![AI follow-up questions](screenshots/Screenshot_1782152509.png)
+
+### Test prescribed
+
+Each test shows plain-English instructions, live condition validation against OBD2 data, and a **Start Test** button once conditions are met.
+
+![Warm idle baseline test ready](screenshots/Screenshot_1782152549.png)
+
+### Live sensor collection
+
+During a test, the app polls PIDs and displays a real-time chart with toggleable sensor traces and a progress timer.
+
+![Live sensor dashboard during test](screenshots/Screenshot_1782152583.png)
+
+---
+
 ## How it works
 
 ```
-Connect ELM327  →  Fill intake form  →  AI reads DTCs + forms hypotheses
+Connect ELM327 (or simulate)  →  Fill intake form  →  AI reads DTCs + forms hypotheses
        ↓
 AI prescribes a test  →  User meets condition (e.g. engine warm, idle)
        ↓
@@ -25,20 +77,22 @@ The AI never diagnoses from fault codes alone. Every conclusion is backed by liv
 ## Features
 
 - **Bluetooth Classic (SPP)** connection to ELM327 adapters
+- **Simulated vehicle mode** — full diagnostic flow without hardware, with configurable fault profiles
+- **Live monitor** — standalone real-time PID dashboard with sparkline charts
 - **18 diagnostic tests** covering fuel delivery, air metering, O2 sensors, catalyst efficiency, EGR, misfires, cold-start behaviour, and more
 - **Gemini 2.0 Flash function calling** — AI only responds via structured function calls (`prescribe_test`, `request_vehicle_info`, `conclude_diagnosis`, `request_live_narration`)
 - **Automatic PID support detection** — skips unsupported sensors gracefully, tells the AI which sensors were unavailable
 - **Session checkpointing** — if the app is killed mid-session, an interrupted session is detected on next launch and can be resumed (Gemini context is reconstructed from saved test summaries)
 - **Gemini Live voice narration** during active test collection
 - **PDF report export** with full evidence summary
-- **Dark automotive UI** with live sensor dashboards and sparklines
+- **Dark automotive UI** with live sensor dashboards and real-time charts
 
 ---
 
 ## Requirements
 
 - Android phone with Bluetooth Classic support (Android 5.0+, minSdk 21)
-- ELM327 Bluetooth Classic (SPP) OBD2 adapter — paired in Android Bluetooth settings before use
+- ELM327 Bluetooth Classic (SPP) OBD2 adapter — paired in Android Bluetooth settings before use (or use simulated mode)
 - A Google AI Studio API key with Gemini 2.0 Flash access
 - Flutter SDK 3.7+
 
@@ -51,28 +105,26 @@ The AI never diagnoses from fault codes alone. Every conclusion is backed by liv
 ### 1. Clone and install dependencies
 
 ```bash
-git clone https://github.com/your-username/elm-obd2.git
+git clone https://github.com/msamoeed/elm-obd2.git
 cd elm-obd2
 flutter pub get
 ```
 
-### 2. Add your Gemini API key
-
-Create a `.env` file in the project root:
-
-```env
-GEMINI_API_KEY=your_key_here
-```
-
-Get a free key at [aistudio.google.com](https://aistudio.google.com). The `.env` file is listed in `.gitignore` — never commit it.
-
-### 3. Run on a physical Android device
+### 2. Run on a physical Android device
 
 ```bash
 flutter run
 ```
 
-> The app requires a real device. Bluetooth is not available in emulators.
+> The app requires a real device for Bluetooth. Use **Simulate Vehicle** on the connect screen to test without an ELM327 adapter.
+
+### 3. Build a release APK (optional)
+
+```bash
+flutter build apk --release
+```
+
+The APK is written to `build/app/outputs/apk/release/app-release.apk`.
 
 ---
 
@@ -87,30 +139,32 @@ lib/
 │   ├── obd/
 │   │   ├── elm327_connector.dart   # BT SPP connection, serial command queue
 │   │   ├── obd_service.dart        # PID polling, DTC reading, supported PID cache
+│   │   ├── obd_transport.dart      # Shared transport interface (real + simulated)
 │   │   ├── pid_decoder.dart        # SAE J1979 hex → engineering value formulas
 │   │   ├── dtc_decoder.dart        # DTC hex → P0xxx string
-│   │   └── pid_constants.dart      # All supported PID codes and names
+│   │   ├── pid_constants.dart      # All supported PID codes and names
+│   │   └── simulated/              # Virtual ECU + simulated ELM327 connector
 │   │
 │   ├── diagnosis/
 │   │   ├── gemini_agent.dart       # ChatSession wrapper, function call router
+│   │   ├── gemini_live_service.dart# Gemini Live WebSocket for voice narration
 │   │   ├── test_executor.dart      # Runs a test, produces SensorSummary
 │   │   ├── test_library.dart       # All 18 named test definitions
 │   │   ├── function_tools.dart     # Gemini tool declarations
 │   │   ├── system_prompt.dart      # Expert mechanic persona + diagnostic rules
 │   │   └── models/
-│   │       ├── sensor_summary.dart
-│   │       ├── prescribed_test.dart
-│   │       ├── diagnosis_result.dart
-│   │       └── diagnostic_session.dart
 │   │
 │   └── storage/
-│       └── session_repository.dart # Hive persistence (sessions + checkpoints)
+│       ├── session_repository.dart # Hive persistence (sessions + checkpoints)
+│       └── settings_repository.dart# API key and app settings
 │
 └── features/
     ├── home/         # Past sessions + resume interrupted session
-    ├── connect/      # Bluetooth device list, connection state
+    ├── connect/      # Bluetooth device list, simulation mode
     ├── intake/       # Vehicle info + driver complaint form
     ├── session/      # Main diagnostic loop UI + state machine
+    ├── monitor/      # Standalone live PID monitor
+    ├── settings/     # Gemini API key entry
     ├── diagnosis/    # Final diagnosis report screen
     └── report/       # PDF export
 ```
@@ -156,6 +210,8 @@ lib/
 
 **Session recovery** — A checkpoint is saved to Hive as soon as the intake scan completes, updated after each test, and finalised on diagnosis. If the app is killed mid-session, the next launch detects the interrupted session and reconstructs the full Gemini context from the saved intake prompt and test summaries.
 
+**Simulated vehicle** — A virtual ECU implements the same OBD transport interface as the real ELM327 connector, so the diagnostic agent, test executor, and UI work identically with or without hardware.
+
 ---
 
 ## Android permissions
@@ -179,8 +235,8 @@ RECORD_AUDIO  (Gemini Live voice narration)
 | `flutter_bluetooth_serial` | Bluetooth Classic SPP connection |
 | `flutter_riverpod` | State management |
 | `go_router` | Navigation |
-| `hive_flutter` | Local session persistence |
+| `hive_flutter` | Local session persistence + settings |
 | `pdf` + `printing` | PDF report generation |
-| `flutter_dotenv` | API key management via `.env` |
 | `web_socket_channel` | Gemini Live WebSocket |
 | `permission_handler` | Runtime Bluetooth + location permissions |
+| `fl_chart` | Real-time sensor charts during tests and live monitor |

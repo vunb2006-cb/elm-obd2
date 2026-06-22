@@ -6,6 +6,7 @@ import '../../core/diagnosis/models/diagnostic_session.dart';
 import '../../core/storage/session_repository.dart';
 import '../../features/session/session_provider.dart';
 import '../../shared/theme.dart';
+import '../../shared/widgets/loading_state.dart';
 import '../../shared/widgets/severity_badge.dart';
 
 final _repositoryProvider = Provider<SessionRepository>((ref) {
@@ -32,7 +33,7 @@ class HomeScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {},
+            onPressed: () => context.go('/settings'),
           ),
         ],
       ),
@@ -81,8 +82,9 @@ class HomeScreen extends ConsumerWidget {
           // Past sessions
           Expanded(
             child: sessions.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const LoadingState(
+                message: 'Loading session history…',
+              ),
               error: (_, __) => const SizedBox.shrink(),
               data: (list) {
                 // Hide interrupted sessions from history list — they show in the banner.

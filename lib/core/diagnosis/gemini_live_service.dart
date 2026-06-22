@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// Manages a Gemini Live WebSocket session for real-time voice narration
@@ -36,11 +35,10 @@ class GeminiLiveService {
   ///
   /// [context] becomes the system instruction guiding what Gemini Live
   /// should watch for and say.
-  Future<void> start(String context) async {
+  Future<void> start(String context, String apiKey) async {
     if (_active) await stop();
 
-    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
-    if (apiKey.isEmpty || apiKey == 'your_key_here') return;
+    if (apiKey.trim().isEmpty) return;
 
     _systemInstruction = context;
 

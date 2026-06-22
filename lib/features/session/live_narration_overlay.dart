@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/diagnosis/gemini_live_service.dart';
 import '../../shared/theme.dart';
+import '../settings/settings_provider.dart';
 
 final _liveServiceProvider = Provider<GeminiLiveService>((ref) {
   final s = GeminiLiveService();
@@ -44,7 +45,9 @@ class _LiveNarrationOverlayState
 
   Future<void> _start() async {
     final service = ref.read(_liveServiceProvider);
-    await service.start(widget.context);
+    final apiKey = await ref.read(geminiApiKeyProvider.future);
+    if (!mounted || apiKey == null) return;
+    await service.start(widget.context, apiKey);
     _textSub = service.narrationStream.listen((text) {
       if (mounted) {
         setState(() {

@@ -13,6 +13,7 @@ import '../../core/obd/obd_service.dart';
 import '../../core/storage/session_repository.dart';
 import '../../features/connect/connect_provider.dart';
 import '../../features/intake/intake_provider.dart';
+import '../settings/settings_provider.dart';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,9 @@ enum SessionPhase {
   error,
 }
 
+/// A single time-stamped value for a sensor reading collected during a test.
+typedef ChartPoint = ({int t, double v});
+
 class SessionState {
   final SessionPhase phase;
   final String statusMessage;
@@ -42,6 +46,14 @@ class SessionState {
   final String? liveNarrationContext;
   final String? errorMessage;
 
+  /// Time-series history for the *current* test — cleared at each test start.
+  /// Key is PID name (e.g. 'rpm'), value is ordered list of (t, v) points.
+  final Map<String, List<ChartPoint>> liveHistory;
+
+  /// PID hex codes the connected ECU reported as supported (e.g. {'0C','05'}).
+  /// Populated after the initial supported-PID scan in [startSession].
+  final Set<String> vehicleSupportedPids;
+
   const SessionState({
     this.phase = SessionPhase.idle,
     this.statusMessage = '',
@@ -55,6 +67,8 @@ class SessionState {
     this.vehicleInfoQuestions = const [],
     this.liveNarrationContext,
     this.errorMessage,
+    this.liveHistory = const {},
+    this.vehicleSupportedPids = const {},
   });
 
   SessionState copyWith({
@@ -72,6 +86,9 @@ class SessionState {
     String? liveNarrationContext,
     bool clearLiveNarration = false,
     String? errorMessage,
+    Map<String, List<ChartPoint>>? liveHistory,
+    bool clearLiveHistory = false,
+    Set<String>? vehicleSupportedPids,
   }) {
     return SessionState(
       phase: phase ?? this.phase,
@@ -83,14 +100,16 @@ class SessionState {
       completedTests: completedTests ?? this.completedTests,
       finalDiagnosis: finalDiagnosis ?? this.finalDiagnosis,
       liveValues: liveValues ?? this.liveValues,
-      collectingElapsed:
-          collectingElapsed ?? this.collectingElapsed,
+      collectingElapsed: collectingElapsed ?? this.collectingElapsed,
       vehicleInfoQuestions:
           vehicleInfoQuestions ?? this.vehicleInfoQuestions,
       liveNarrationContext: clearLiveNarration
           ? null
           : (liveNarrationContext ?? this.liveNarrationContext),
       errorMessage: errorMessage ?? this.errorMessage,
+      liveHistory: clearLiveHistory ? {} : (liveHistory ?? this.liveHistory),
+      vehicleSupportedPids:
+          vehicleSupportedPids ?? this.vehicleSupportedPids,
     );
   }
 }
@@ -102,13 +121,29 @@ class SessionNotifier extends StateNotifier<SessionState> {
   final ObdService _obd;
   final IntakeData? _intake;
   final SessionRepository _repo;
+  final Ref _ref;
   TestExecutor? _executor;
 
   // Tracks the in-progress session being auto-saved to Hive.
   DiagnosticSession? _checkpoint;
 
-  SessionNotifier(this._agent, this._obd, this._intake, this._repo)
+  SessionNotifier(this._agent, this._obd, this._intake, this._repo, this._ref)
       : super(const SessionState());
+
+  /// Resolves the saved Gemini API key, or sets an error state and returns
+  /// null if none has been configured yet.
+  Future<String?> _resolveApiKey() async {
+    final apiKey = await _ref.read(geminiApiKeyProvider.future);
+    if (apiKey == null) {
+      state = state.copyWith(
+        phase: SessionPhase.error,
+        errorMessage:
+            'No Gemini API key set. Add one in Settings before starting a session.',
+      );
+      return null;
+    }
+    return apiKey;
+  }
 
   Future<void> startSession() async {
     if (_intake == null) {
@@ -161,9 +196,12 @@ class SessionNotifier extends StateNotifier<SessionState> {
       state = state.copyWith(
         phase: SessionPhase.llmHypothesis,
         statusMessage: 'AI is analyzing fault codes and forming hypotheses...',
+        vehicleSupportedPids: _obd.supportedPids,
       );
 
-      await _agent.initialize();
+      final apiKey = await _resolveApiKey();
+      if (apiKey == null) return;
+      await _agent.initialize(apiKey);
       final action = await _agent.submitIntake(enrichedIntake);
       _handleAction(action);
     } catch (e) {
@@ -192,6 +230,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
       phase: SessionPhase.collecting,
       statusMessage: 'Running ${def.name}...',
       collectingElapsed: 0,
+      clearLiveHistory: true,
     );
 
     _executor = TestExecutor(_obd);
@@ -201,9 +240,22 @@ class SessionNotifier extends StateNotifier<SessionState> {
         test.testId,
         onProgress: (elapsed, values) {
           if (mounted) {
+            // Append each new value to its per-PID history list.
+            final prev = state.liveHistory;
+            final next = <String, List<ChartPoint>>{};
+            for (final key in prev.keys) {
+              next[key] = prev[key]!;
+            }
+            for (final entry in values.entries) {
+              next[entry.key] = [
+                ...(next[entry.key] ?? []),
+                (t: elapsed, v: entry.value),
+              ];
+            }
             state = state.copyWith(
               collectingElapsed: elapsed,
               liveValues: values,
+              liveHistory: next,
             );
           }
         },
@@ -217,6 +269,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
         statusMessage: 'AI is analysing test results...',
         completedTests: updatedTests,
         liveValues: {},
+        clearLiveHistory: true,
       );
 
       // Update the checkpoint so this completed test is recoverable.
@@ -335,7 +388,9 @@ class SessionNotifier extends StateNotifier<SessionState> {
     );
 
     try {
-      await _agent.initialize();
+      final apiKey = await _resolveApiKey();
+      if (apiKey == null) return;
+      await _agent.initialize(apiKey);
 
       // Reconstruct Gemini context with a single combined message that
       // summarises all work done so far.
@@ -438,5 +493,5 @@ final sessionProvider =
   final obd = ref.watch(obdServiceProvider);
   final intake = ref.watch(intakeProvider);
   final repo = ref.watch(sessionRepositoryProvider);
-  return SessionNotifier(agent, obd, intake, repo);
+  return SessionNotifier(agent, obd, intake, repo, ref);
 });

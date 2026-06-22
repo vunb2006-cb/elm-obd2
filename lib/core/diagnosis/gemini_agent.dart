@@ -1,4 +1,3 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 
 import 'function_tools.dart';
@@ -37,16 +36,15 @@ class ConcludeAction extends AgentAction {
 // ─── Agent ────────────────────────────────────────────────────────────────────
 
 class GeminiAgent {
-  late final GenerativeModel _model;
-  late final ChatSession _chat;
+  late GenerativeModel _model;
+  late ChatSession _chat;
   bool _initialized = false;
 
-  Future<void> initialize() async {
+  Future<void> initialize(String apiKey) async {
     if (_initialized) return;
-    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
-    if (apiKey.isEmpty || apiKey == 'your_key_here') {
+    if (apiKey.trim().isEmpty) {
       throw StateError(
-          'GEMINI_API_KEY not set. Add your key to the .env file.');
+          'No Gemini API key set. Add one in Settings before starting a session.');
     }
 
     _model = GenerativeModel(

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'elm327_connector.dart';
+import 'obd_transport.dart';
 import 'pid_decoder.dart';
 import 'dtc_decoder.dart';
 import 'pid_constants.dart';
@@ -8,7 +8,7 @@ import 'models/dtc_code.dart';
 import 'models/sensor_reading.dart';
 
 class ObdService {
-  final Elm327Connector connector;
+  final ObdTransport connector;
 
   /// Populated after [readSupportedPIDs] is called.
   /// Empty means "not yet read — assume all PIDs are supported."

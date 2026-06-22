@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/diagnosis/test_library.dart';
 import '../../shared/theme.dart';
+import '../connect/connect_provider.dart';
+import '../connect/simulator_control_panel.dart';
 import 'session_provider.dart';
 import 'widgets/agent_thinking_indicator.dart';
 import 'widgets/live_sensor_dashboard.dart';
@@ -22,13 +24,19 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(sessionProvider.notifier).startSession();
+      // Skip auto-start if a resume is already in flight: resumeFromCheckpoint
+      // advances the phase past `idle` synchronously before this screen's
+      // first frame, so this only fires for a genuinely fresh session.
+      if (ref.read(sessionProvider).phase == SessionPhase.idle) {
+        ref.read(sessionProvider.notifier).startSession();
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
+    final isSimulating = ref.watch(isSimulatingProvider);
 
     // Navigate to diagnosis screen when concluded
     ref.listen(sessionProvider, (_, next) {
@@ -47,6 +55,14 @@ class _SessionScreenState extends ConsumerState<SessionScreen> {
             context.go('/');
           },
         ),
+        actions: [
+          if (isSimulating)
+            IconButton(
+              icon: const Icon(Icons.tune),
+              tooltip: 'Simulator Controls',
+              onPressed: () => showSimulatorControlPanel(context),
+            ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: _StatusBar(session: session),
@@ -162,6 +178,8 @@ class _MainContent extends ConsumerWidget {
               liveValues: session.liveValues,
               elapsed: session.collectingElapsed,
               totalDuration: _testDuration(session.currentTest?.testId),
+              liveHistory: session.liveHistory,
+              vehicleSupportedPidCodes: session.vehicleSupportedPids,
             ),
           ),
         ),

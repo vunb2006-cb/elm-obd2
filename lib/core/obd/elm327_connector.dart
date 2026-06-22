@@ -5,15 +5,11 @@ import 'dart:typed_data';
 
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
-enum Elm327State {
-  disconnected,
-  connecting,
-  initializing,
-  connected,
-  error,
-}
+import 'obd_transport.dart';
 
-class Elm327Connector {
+export 'obd_transport.dart';
+
+class Elm327Connector implements ObdTransport {
   BluetoothConnection? _connection;
   StreamSubscription<Uint8List>? _inputSub;
 
@@ -31,11 +27,15 @@ class Elm327Connector {
 
   String? _lastConnectedAddress;
 
+  @override
   Stream<Elm327State> get stateStream => _stateController.stream;
+  @override
   Elm327State get state => _state;
+  @override
   bool get isConnected => _state == Elm327State.connected;
 
   /// The Bluetooth address of the device we are currently (or were last) connected to.
+  @override
   String? get lastConnectedAddress => _lastConnectedAddress;
 
   /// Returns all bonded Bluetooth devices (UI filters by name).
@@ -114,6 +114,7 @@ class Elm327Connector {
   }
 
   /// Send [cmd] to the ELM327 and return the response (everything before '>').
+  @override
   Future<String> sendCommand(String cmd) {
     if (_connection == null || !_connection!.isConnected) {
       throw StateError('ELM327 not connected');
@@ -194,6 +195,7 @@ class Elm327Connector {
     _setState(Elm327State.disconnected);
   }
 
+  @override
   Future<void> disconnect() async {
     await _forceCleanup();
     _setState(Elm327State.disconnected);
@@ -204,6 +206,7 @@ class Elm327Connector {
     if (!_stateController.isClosed) _stateController.add(s);
   }
 
+  @override
   void dispose() {
     disconnect();
     _stateController.close();
