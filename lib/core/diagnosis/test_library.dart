@@ -1,3 +1,6 @@
+// Test IDs are snake_case strings shared with the Gemini agent — not Dart identifiers.
+// ignore_for_file: constant_identifier_names
+
 import '../obd/pid_constants.dart';
 
 class TestDefinition {

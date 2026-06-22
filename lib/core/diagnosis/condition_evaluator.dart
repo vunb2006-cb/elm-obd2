@@ -19,7 +19,7 @@ class ConditionStatus {
 ///
 /// Condition expressions are simple strings like:
 ///   "coolant_temp > 85 && rpm < 1000"
-/// Each clause is "<pid_name> <op> <value>", joined by "&&".
+/// Each clause is `pid_name op value`, joined by `&&`.
 class ConditionEvaluator {
   final ObdService _obd;
   StreamController<ConditionStatus>? _controller;
