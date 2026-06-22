@@ -93,7 +93,7 @@ The AI never diagnoses from fault codes alone. Every conclusion is backed by liv
 
 - Android phone with Bluetooth Classic support (Android 5.0+, minSdk 21)
 - ELM327 Bluetooth Classic (SPP) OBD2 adapter — paired in Android Bluetooth settings before use (or use simulated mode)
-- A Google AI Studio API key with Gemini 2.0 Flash access
+- A Google AI Studio API key with Gemini access — see [Getting a Gemini API key](#getting-a-gemini-api-key) below
 - Flutter SDK 3.7+
 
 > **Note:** Bluetooth LE / BLE adapters are **not** supported. The app uses the RFCOMM Serial Port Profile (SPP).
@@ -110,6 +110,8 @@ cd elm-obd2
 flutter pub get
 ```
 
+Before your first diagnostic session, add a Gemini API key in the app — see [Getting a Gemini API key](#getting-a-gemini-api-key).
+
 ### 2. Run on a physical Android device
 
 ```bash
@@ -125,6 +127,57 @@ flutter build apk --release
 ```
 
 The APK is written to `build/app/outputs/apk/release/app-release.apk`.
+
+---
+
+## Getting a Gemini API key
+
+The app uses Google's Gemini API for diagnostic reasoning and optional live voice narration during tests. You need your own API key — it is **not** included in the app.
+
+### Step 1 — Create a key in Google AI Studio
+
+1. Open [Google AI Studio](https://aistudio.google.com) in a browser and sign in with a Google account.
+2. Click **Get API key** in the left sidebar (or go directly to [aistudio.google.com/apikey](https://aistudio.google.com/apikey)).
+3. Click **Create API key**.
+4. Choose **Create API key in new project** (or select an existing Google Cloud project if you already use one).
+5. Copy the key when it appears. It starts with `AIza` and looks like `AIzaSy...`.
+
+> **Tip:** Keep this key private. Anyone with your key can make API calls billed to your Google account.
+
+Google AI Studio offers a free tier with usage limits. If you exceed the free quota, you may need to enable billing on the linked Google Cloud project. See [Google AI pricing](https://ai.google.dev/pricing) for current limits and rates.
+
+### Step 2 — Add the key in the app
+
+1. Install and open **ELM OBD2 Diagnostics** on your Android phone.
+2. On the home screen, tap the **gear icon** (top right) to open **Settings**.
+3. Under **Gemini API Key**, paste your key into the text field.
+   - Tap the eye icon to show or hide the key while typing.
+   - Keys typically start with `AIza...`.
+4. Tap **Save**. A green **Saved** confirmation appears when the key is stored.
+5. Go back and start a diagnostic session as usual — the app reads the key automatically.
+
+The key is saved **only on your device** (local Hive storage). It is never bundled into the APK and is not sent anywhere except to Google's Gemini API when you run a session.
+
+### Step 3 — Verify it works
+
+1. Connect to an ELM327 adapter (or tap **Simulate Vehicle** on the connect screen).
+2. Fill in the vehicle intake form and tap **Start Diagnostic Session**.
+3. If the key is missing, the session stops with: *"No Gemini API key set. Add one in Settings before starting a session."*
+4. If the key is valid, you should see the **AI Thinking** screen while Gemini analyzes fault codes.
+
+### Updating or removing your key
+
+- **Change key:** Open **Settings**, replace the value in the field, and tap **Save**.
+- **Remove key:** Open **Settings**, tap **Clear**, then confirm. Diagnostic sessions will not run until a new key is saved.
+
+### Troubleshooting
+
+| Problem | What to try |
+|---|---|
+| "No Gemini API key set" | Open **Settings**, paste your key, and tap **Save** before starting a session. |
+| Session fails immediately after saving | Check for extra spaces when pasting. Re-copy the key from AI Studio and save again. |
+| API errors / rate limits | Confirm the key is active at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). You may have hit the free-tier limit — wait and retry, or enable billing on the project. |
+| Live narration silent | Live narration also uses your Gemini API key. Ensure the key is saved and that the app has **microphone** permission if prompted. |
 
 ---
 
