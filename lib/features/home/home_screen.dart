@@ -55,7 +55,7 @@ class HomeScreen extends ConsumerWidget {
                 const AppLogo(size: 48),
                 const SizedBox(height: 12),
                 Text(
-                  'AI-Powered\nVehicle Diagnostics',
+                  'Guided\nVehicle Diagnostics',
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const SizedBox(height: 6),

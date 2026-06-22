@@ -156,7 +156,9 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
     state = state.copyWith(
       phase: SessionPhase.intakeScan,
-      statusMessage: 'Reading fault codes and sensor data...',
+      statusMessage: _intake.dtcs.isNotEmpty
+          ? 'Reading sensor data from vehicle...'
+          : 'Reading fault codes and sensor data...',
     );
 
     try {
@@ -195,7 +197,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
       state = state.copyWith(
         phase: SessionPhase.llmHypothesis,
-        statusMessage: 'AI is analyzing fault codes and forming hypotheses...',
+        statusMessage: 'Reviewing fault codes and forming a test plan...',
         vehicleSupportedPids: _obd.supportedPids,
       );
 
@@ -266,7 +268,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
       final updatedTests = [...state.completedTests, summary];
       state = state.copyWith(
         phase: SessionPhase.llmAnalysis,
-        statusMessage: 'AI is analysing test results...',
+        statusMessage: 'Interpreting test results...',
         completedTests: updatedTests,
         liveValues: {},
         clearLiveHistory: true,
@@ -331,14 +333,14 @@ class SessionNotifier extends StateNotifier<SessionState> {
       case RequestVehicleInfoAction(:final questions, :final context):
         state = state.copyWith(
           phase: SessionPhase.testPrescribed, // reuse UI for info cards
-          statusMessage: context ?? 'AI needs more information',
+          statusMessage: context ?? 'A few more questions',
           vehicleInfoQuestions: questions,
         );
 
       case RequestLiveNarrationAction(:final context):
         state = state.copyWith(
           liveNarrationContext: context,
-          statusMessage: 'Gemini Live will narrate this test',
+          statusMessage: 'Live narration will run during this test',
         );
         // After setting narration context, prescribe the test in next turn
         // (Gemini follows up with prescribe_test)
@@ -381,8 +383,8 @@ class SessionNotifier extends StateNotifier<SessionState> {
     state = state.copyWith(
       phase: SessionPhase.llmHypothesis,
       statusMessage:
-          'Resuming session — replaying ${checkpoint.testResults.length} '
-          'completed test(s) to AI...',
+          'Resuming session — restoring ${checkpoint.testResults.length} '
+          'completed test(s)...',
       completedTests: checkpoint.testResults,
       testNumber: checkpoint.testResults.length,
     );

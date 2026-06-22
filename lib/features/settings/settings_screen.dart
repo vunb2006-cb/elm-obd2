@@ -73,8 +73,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 Text('Gemini API Key', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 6),
                 Text(
-                  'Stored on-device only — used to run the diagnostic agent and '
-                  'Gemini Live narration. Get a key at aistudio.google.com.',
+                  'Stored on-device only — used for diagnostic analysis and '
+                  'live narration. Get a key at aistudio.google.com.',
                   style: Theme.of(context)
                       .textTheme
                       .bodySmall

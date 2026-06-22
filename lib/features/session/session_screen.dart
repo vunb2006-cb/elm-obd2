@@ -248,7 +248,7 @@ class _VehicleInfoCardState extends ConsumerState<_VehicleInfoCard> {
                   const Icon(Icons.help_outline,
                       color: AppTheme.accent, size: 22),
                   const SizedBox(width: 8),
-                  Text('AI needs more information',
+                  Text('A few more questions',
                       style: Theme.of(context).textTheme.titleMedium),
                 ],
               ),

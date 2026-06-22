@@ -62,7 +62,7 @@ class ReportGenerator {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  'OBD2 AI Diagnostic Report',
+                  'OBD2 Diagnostic Report',
                   style: pw.TextStyle(
                     color: accentColor,
                     fontSize: 22,

@@ -95,7 +95,7 @@ class _LiveNarrationOverlayState
               const _PulsingDot(),
               const SizedBox(width: 8),
               Text(
-                'Gemini Live',
+                'Live narration',
                 style: TextStyle(
                   color: AppTheme.accent,
                   fontWeight: FontWeight.w700,

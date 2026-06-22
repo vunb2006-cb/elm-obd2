@@ -54,16 +54,8 @@ class _AgentThinkingIndicatorState extends State<AgentThinkingIndicator>
             ),
             const SizedBox(height: 20),
             Text(
-              'AI Thinking',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
               widget.message,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppTheme.muted),
+              style: Theme.of(context).textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
           ],

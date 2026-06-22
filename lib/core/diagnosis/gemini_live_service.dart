@@ -64,7 +64,7 @@ class GeminiLiveService {
       );
     } catch (e) {
       _active = false;
-      _narrationController.add('[Could not connect to Gemini Live: $e]');
+      _narrationController.add('[Could not connect to live narration: $e]');
     }
   }
 
