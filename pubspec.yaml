@@ -23,7 +23,7 @@ dependencies:
   http: ^1.2.1
   web_socket_channel: ^2.4.0
   cupertino_icons: ^1.0.8
-  fl_chart: ^0.69.0
+  fl_chart: ^0.71.0
 
 dev_dependencies:
   flutter_test:

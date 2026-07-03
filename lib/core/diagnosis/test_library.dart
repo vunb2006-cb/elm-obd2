@@ -178,6 +178,31 @@ class TestLibrary {
         'Steady low pressure points to a clogged fuel filter.',
   );
 
+  static const fuel_pressure_load_test = TestDefinition(
+    id: 'fuel_pressure_load_test',
+    name: 'Fuel Pressure Under Load',
+    conditionDescription:
+        'Engine warm (>85°C), vehicle stationary, in neutral',
+    conditionExpression: 'coolant_temp > 85',
+    durationSeconds: 60,
+    pids: [
+      'fuel_pressure',
+      'rpm',
+      'stft_b1',
+      'ltft_b1',
+      'maf',
+      'map',
+      'engine_load',
+    ],
+    sampleRateHz: 2.0,
+    purpose:
+        'Two-phase test: idle ~20s then hold 2000–2500 RPM for the rest. '
+        'Compares idle vs load fuel pressure and fuel trims. '
+        'Pressure drop >20 kPa under load suggests weak pump or failing regulator. '
+        'STFT/LTFT worsening >5% under load with stable MAF suggests fuel delivery cannot meet demand. '
+        'Use when trims are lean at all RPMs or worse under acceleration/cruise.',
+  );
+
   static const maf_map_correlation = TestDefinition(
     id: 'maf_map_correlation',
     name: 'MAF vs MAP Correlation',
@@ -326,6 +351,7 @@ class TestLibrary {
     misfire_idle_monitor,
     cold_start_temp_curve,
     fuel_pressure_idle,
+    fuel_pressure_load_test,
     maf_map_correlation,
     throttle_snap_test,
     cruise_load_fuel_trim,

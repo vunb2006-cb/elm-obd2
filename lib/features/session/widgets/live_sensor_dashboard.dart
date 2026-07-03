@@ -110,7 +110,7 @@ class _LiveSensorDashboardState extends State<LiveSensorDashboard> {
         // ── Main content: chart or grid ────────────────────────────────────
         if (_showChart) ...[
           SizedBox(
-            height: 220,
+            height: 260,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: SensorChart(

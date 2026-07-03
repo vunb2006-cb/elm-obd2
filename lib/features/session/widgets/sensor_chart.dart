@@ -1,9 +1,14 @@
+import 'dart:math' as math;
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/obd/pid_constants.dart';
 import '../../../shared/theme.dart';
 import '../session_provider.dart';
+
+/// Seconds visible at 1× zoom while live data is streaming.
+const _liveWindowSeconds = 45.0;
 
 // ─── Per-PID normalization ranges ─────────────────────────────────────────────
 
@@ -64,39 +69,105 @@ Color _colorForIndex(int i) => _palette[i % _palette.length];
 /// The Y axis is normalized 0–100 % of each PID's known range so that sensors
 /// with wildly different scales (RPM vs O2 voltage) can be meaningfully
 /// overlaid. Tooltips show the raw (un-normalized) value with units.
-class SensorChart extends StatelessWidget {
+///
+/// Pinch to zoom horizontally and drag to pan (fl_chart 0.70+). While live data
+/// streams, the chart keeps a rolling window on the latest readings at 1× zoom.
+class SensorChart extends StatefulWidget {
   /// Full time-series history for the current test, keyed by PID name.
   final Map<String, List<ChartPoint>> history;
 
   /// Which PIDs are currently toggled on.
   final Set<String> selectedPids;
 
+  /// When true, keeps a rolling window on the latest readings at default zoom.
+  final bool followLatest;
+
   const SensorChart({
     super.key,
     required this.history,
     required this.selectedPids,
+    this.followLatest = true,
   });
 
   @override
+  State<SensorChart> createState() => _SensorChartState();
+}
+
+class _SensorChartState extends State<SensorChart> {
+  late final TransformationController _transformController;
+  var _isTransformed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _transformController = TransformationController();
+    _transformController.addListener(_onTransformChanged);
+  }
+
+  @override
+  void dispose() {
+    _transformController.removeListener(_onTransformChanged);
+    _transformController.dispose();
+    super.dispose();
+  }
+
+  void _onTransformChanged() {
+    final translation = _transformController.value.getTranslation();
+    final transformed = _transformController.value.getMaxScaleOnAxis() > 1.01 ||
+        translation.x.abs() > 1.0 ||
+        translation.y.abs() > 1.0;
+    if (transformed != _isTransformed) {
+      setState(() => _isTransformed = transformed);
+    }
+  }
+
+  void _resetTransform() {
+    _transformController.value = Matrix4.identity();
+  }
+
+  List<String> _activePids() => widget.selectedPids
+      .where((p) => (widget.history[p]?.isNotEmpty ?? false))
+      .toList();
+
+  double _maxElapsedSeconds(List<String> activePids) {
+    var maxX = 10.0;
+    for (final pid in activePids) {
+      final pts = widget.history[pid]!;
+      if (pts.isNotEmpty && pts.last.t > maxX) {
+        maxX = pts.last.t.toDouble();
+      }
+    }
+    return maxX;
+  }
+
+  (double minX, double maxX) _xRange(double maxElapsed) {
+    if (!widget.followLatest || _isTransformed) {
+      return (0, maxElapsed);
+    }
+    if (maxElapsed <= _liveWindowSeconds) {
+      return (0, maxElapsed);
+    }
+    return (maxElapsed - _liveWindowSeconds, maxElapsed);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final activePids =
-        selectedPids.where((p) => (history[p]?.isNotEmpty ?? false)).toList();
+    final activePids = _activePids();
 
     if (activePids.isEmpty) {
       return _empty(context);
     }
 
-    // Determine X-axis max from the longest trace.
-    double maxX = 10;
-    for (final pid in activePids) {
-      final pts = history[pid]!;
-      if (pts.isNotEmpty && pts.last.t > maxX) maxX = pts.last.t.toDouble();
-    }
+    final maxElapsed = _maxElapsedSeconds(activePids);
+    final (minX, maxX) = _xRange(maxElapsed);
+    final xSpan = math.max(maxX - minX, 1.0);
+    final xLabelInterval =
+        ((xSpan / 5).ceilToDouble()).clamp(5.0, 60.0).toDouble();
 
     final bars = <LineChartBarData>[];
     for (var i = 0; i < activePids.length; i++) {
       final pid = activePids[i];
-      final pts = history[pid]!;
+      final pts = widget.history[pid]!;
       final color = _colorForIndex(i);
 
       bars.add(LineChartBarData(
@@ -112,104 +183,133 @@ class SensorChart extends StatelessWidget {
       ));
     }
 
-    return LineChart(
-      duration: const Duration(milliseconds: 120),
-      LineChartData(
-        lineBarsData: bars,
-        minY: 0,
-        maxY: 100,
-        minX: 0,
-        maxX: maxX,
-        clipData: const FlClipData.all(),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: true,
-          horizontalInterval: 25,
-          verticalInterval: (maxX / 5).ceilToDouble().clamp(5, 60),
-          getDrawingHorizontalLine: (_) => const FlLine(
-            color: Color(0xFF2A2A30),
-            strokeWidth: 1,
+    return Stack(
+      children: [
+        LineChart(
+          duration: const Duration(milliseconds: 120),
+          transformationConfig: FlTransformationConfig(
+            scaleAxis: FlScaleAxis.horizontal,
+            minScale: 1.0,
+            maxScale: 6.0,
+            transformationController: _transformController,
           ),
-          getDrawingVerticalLine: (_) => const FlLine(
-            color: Color(0xFF2A2A30),
-            strokeWidth: 1,
-          ),
-        ),
-        borderData: FlBorderData(
-          show: true,
-          border: Border.all(color: const Color(0xFF2A2A30)),
-        ),
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            axisNameWidget: Text(
-              'normalized %',
-              style: TextStyle(color: AppTheme.muted, fontSize: 10),
-            ),
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 36,
-              interval: 25,
-              getTitlesWidget: (v, _) => Text(
-                '${v.toInt()}',
-                style: const TextStyle(color: AppTheme.muted, fontSize: 10),
+          LineChartData(
+            lineBarsData: bars,
+            minY: 0,
+            maxY: 100,
+            minX: minX,
+            maxX: maxX,
+            clipData: const FlClipData.all(),
+            gridData: FlGridData(
+              show: true,
+              drawVerticalLine: true,
+              horizontalInterval: 25,
+              verticalInterval: xLabelInterval,
+              getDrawingHorizontalLine: (_) => const FlLine(
+                color: Color(0xFF2A2A30),
+                strokeWidth: 1,
+              ),
+              getDrawingVerticalLine: (_) => const FlLine(
+                color: Color(0xFF2A2A30),
+                strokeWidth: 1,
               ),
             ),
-          ),
-          bottomTitles: AxisTitles(
-            axisNameWidget: const Text(
-              'seconds',
-              style: TextStyle(color: AppTheme.muted, fontSize: 10),
+            borderData: FlBorderData(
+              show: true,
+              border: Border.all(color: const Color(0xFF2A2A30)),
             ),
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 28,
-              interval: (maxX / 5).ceilToDouble().clamp(5, 60),
-              getTitlesWidget: (v, _) => Text(
-                '${v.toInt()}s',
-                style: const TextStyle(color: AppTheme.muted, fontSize: 10),
-              ),
-            ),
-          ),
-          rightTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles:
-              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        ),
-        lineTouchData: LineTouchData(
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => const Color(0xFF1A1A1F),
-            tooltipBorder:
-                const BorderSide(color: Color(0xFF2A2A30)),
-            getTooltipItems: (spots) {
-              return List.generate(spots.length, (i) {
-                final spot = spots[i];
-                final pid = activePids[i];
-                // Look up closest raw value for this x.
-                final raw = _rawValueAt(pid, spot.x.toInt());
-                final unit = PidConstants.unitFor(
-                    PidConstants.codeForName(pid) ?? pid);
-                final label = PidConstants.nameFor(
-                    PidConstants.codeForName(pid) ?? pid);
-                return LineTooltipItem(
-                  '$label\n${raw.toStringAsFixed(2)} $unit',
-                  TextStyle(
-                    color: _colorForIndex(i),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
+            titlesData: FlTitlesData(
+              leftTitles: AxisTitles(
+                axisNameWidget: Text(
+                  'normalized %',
+                  style: TextStyle(color: AppTheme.muted, fontSize: 10),
+                ),
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 36,
+                  interval: 25,
+                  getTitlesWidget: (v, _) => Text(
+                    '${v.toInt()}',
+                    style: const TextStyle(color: AppTheme.muted, fontSize: 10),
                   ),
-                );
-              });
-            },
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                axisNameWidget: const Text(
+                  'seconds',
+                  style: TextStyle(color: AppTheme.muted, fontSize: 10),
+                ),
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 28,
+                  interval: xLabelInterval,
+                  getTitlesWidget: (v, _) => Text(
+                    '${v.toInt()}s',
+                    style: const TextStyle(color: AppTheme.muted, fontSize: 10),
+                  ),
+                ),
+              ),
+              rightTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              topTitles:
+                  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            ),
+            lineTouchData: LineTouchData(
+              touchTooltipData: LineTouchTooltipData(
+                getTooltipColor: (_) => const Color(0xFF1A1A1F),
+                tooltipBorder:
+                    const BorderSide(color: Color(0xFF2A2A30)),
+                getTooltipItems: (spots) {
+                  return List.generate(spots.length, (i) {
+                    final spot = spots[i];
+                    final pid = activePids[i];
+                    final raw = _rawValueAt(pid, spot.x.toInt());
+                    final unit = PidConstants.unitFor(
+                        PidConstants.codeForName(pid) ?? pid);
+                    final label = PidConstants.nameFor(
+                        PidConstants.codeForName(pid) ?? pid);
+                    return LineTooltipItem(
+                      '$label\n${raw.toStringAsFixed(2)} $unit',
+                      TextStyle(
+                        color: _colorForIndex(i),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    );
+                  });
+                },
+              ),
+            ),
           ),
         ),
-      ),
+        if (_isTransformed)
+          Positioned(
+            top: 4,
+            right: 4,
+            child: Material(
+              color: AppTheme.surfaceVariant,
+              borderRadius: BorderRadius.circular(8),
+              child: InkWell(
+                onTap: _resetTransform,
+                borderRadius: BorderRadius.circular(8),
+                child: const Padding(
+                  padding: EdgeInsets.all(6),
+                  child: Icon(
+                    Icons.fit_screen_outlined,
+                    size: 16,
+                    color: AppTheme.muted,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 
   double _rawValueAt(String pid, int elapsed) {
-    final pts = history[pid];
+    final pts = widget.history[pid];
     if (pts == null || pts.isEmpty) return 0;
-    // Find the point nearest to the tapped elapsed time.
     ChartPoint best = pts.first;
     int bestDiff = (best.t - elapsed).abs();
     for (final p in pts) {

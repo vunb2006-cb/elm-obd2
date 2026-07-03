@@ -116,8 +116,8 @@ class VirtualEcu {
 
     final maf = (rpm / 1000) * (engineLoad / 100) * 9.0 + _noise(0.3);
 
-    final stft = _fuelTrim(throttle, isShortTerm: true);
-    final ltft = _fuelTrim(throttle, isShortTerm: false);
+    final stft = _fuelTrim(throttle, rpm: rpm, isShortTerm: true);
+    final ltft = _fuelTrim(throttle, rpm: rpm, isShortTerm: false);
 
     final o2b1s1 = _upstreamO2(t);
     final o2b1s2 = 0.5 + 0.05 * sin(2 * pi * t * 0.1);
@@ -138,7 +138,7 @@ class VirtualEcu {
       PidConstants.stftB2: stft * 0.9,
       PidConstants.ltftB2: ltft * 0.9,
       PidConstants.map: map,
-      PidConstants.fuelPressure: 300 + _noise(4),
+      PidConstants.fuelPressure: _fuelPressure(rpm, throttle, engineLoad),
       PidConstants.maf: maf,
       PidConstants.o2B1S1: o2b1s1,
       PidConstants.o2B1S2: o2b1s2,
@@ -150,7 +150,24 @@ class VirtualEcu {
     };
   }
 
-  double _fuelTrim(double throttle, {required bool isShortTerm}) {
+  double _fuelPressure(double rpm, double throttle, double engineLoad) {
+    const base = 310.0;
+    if (fault == FaultProfile.weakFuelPump) {
+      final demand = ((rpm - 800) / 3500).clamp(0.0, 1.0) +
+          throttle / 120 +
+          engineLoad / 250;
+      final sag = demand * 95;
+      return (base - sag + _noise(3)).clamp(175.0, 320.0);
+    }
+    return base + _noise(4);
+  }
+
+  double _fuelTrim(double throttle, {required double rpm, required bool isShortTerm}) {
+    if (fault == FaultProfile.weakFuelPump) {
+      final loadFactor = ((rpm - 900) / 2800).clamp(0.0, 1.0) + throttle / 80;
+      final magnitude = isShortTerm ? 20.0 : 16.0;
+      return _noise(1.5) + loadFactor * magnitude;
+    }
     if (fault != FaultProfile.vacuumLeak) return _noise(2);
     final leakSeverity = max(0.0, 1 - throttle / 30);
     final magnitude = isShortTerm ? 16.0 : 14.0;

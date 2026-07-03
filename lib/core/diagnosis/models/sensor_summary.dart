@@ -72,6 +72,85 @@ class NotableEvent {
   });
 }
 
+/// Structured idle-vs-load comparison for fuel delivery diagnosis.
+class DerivedMetrics {
+  final double? fuelPressureIdleKpa;
+  final double? fuelPressureLoadKpa;
+  /// Positive = pressure fell from idle to load (weak pump / volume loss).
+  final double? fuelPressureDropUnderLoadKpa;
+  final double? stftIdlePct;
+  final double? stftLoadPct;
+  /// Positive = trims leaner under load than at idle.
+  final double? trimDeltaIdleVsLoadStft;
+  final double? ltftIdlePct;
+  final double? ltftLoadPct;
+  final double? trimDeltaIdleVsLoadLtft;
+  final int idleSampleCount;
+  final int loadSampleCount;
+
+  const DerivedMetrics({
+    this.fuelPressureIdleKpa,
+    this.fuelPressureLoadKpa,
+    this.fuelPressureDropUnderLoadKpa,
+    this.stftIdlePct,
+    this.stftLoadPct,
+    this.trimDeltaIdleVsLoadStft,
+    this.ltftIdlePct,
+    this.ltftLoadPct,
+    this.trimDeltaIdleVsLoadLtft,
+    this.idleSampleCount = 0,
+    this.loadSampleCount = 0,
+  });
+
+  bool get hasIdleLoadComparison => idleSampleCount >= 3 && loadSampleCount >= 3;
+
+  List<String> toPromptLines() {
+    if (!hasIdleLoadComparison) {
+      return [
+        'Insufficient idle vs load samples — user should idle ~20s then hold 2000–2500 RPM.',
+      ];
+    }
+
+    final lines = <String>[
+      'Idle phase samples: $idleSampleCount | Load phase samples: $loadSampleCount',
+    ];
+
+    if (fuelPressureIdleKpa != null && fuelPressureLoadKpa != null) {
+      lines.add(
+        'Fuel pressure idle avg: ${fuelPressureIdleKpa!.toStringAsFixed(1)} kPa → '
+        'load avg: ${fuelPressureLoadKpa!.toStringAsFixed(1)} kPa',
+      );
+      if (fuelPressureDropUnderLoadKpa != null) {
+        lines.add(
+          'Pressure drop under load: ${fuelPressureDropUnderLoadKpa!.toStringAsFixed(1)} kPa '
+          '(>20 kPa suggests weak pump or regulator; steady low idle suggests clogged filter)',
+        );
+      }
+    } else {
+      lines.add(
+        'Fuel pressure PID unavailable — infer delivery from trim delta below.',
+      );
+    }
+
+    if (stftIdlePct != null && stftLoadPct != null) {
+      lines.add(
+        'STFT idle avg: ${stftIdlePct!.toStringAsFixed(1)}% → '
+        'load avg: ${stftLoadPct!.toStringAsFixed(1)}% '
+        '(Δ ${trimDeltaIdleVsLoadStft!.toStringAsFixed(1)}%)',
+      );
+    }
+    if (ltftIdlePct != null && ltftLoadPct != null) {
+      lines.add(
+        'LTFT idle avg: ${ltftIdlePct!.toStringAsFixed(1)}% → '
+        'load avg: ${ltftLoadPct!.toStringAsFixed(1)}% '
+        '(Δ ${trimDeltaIdleVsLoadLtft!.toStringAsFixed(1)}%)',
+      );
+    }
+
+    return lines;
+  }
+}
+
 class SensorSummary {
   final String testId;
   final int durationSeconds;
@@ -84,6 +163,9 @@ class SensorSummary {
   /// hardware limitation. Gemini must not interpret missing data as a zero reading.
   final List<String> skippedPids;
 
+  /// Test-specific computed metrics (e.g. idle-vs-load fuel delivery comparison).
+  final DerivedMetrics? derivedMetrics;
+
   const SensorSummary({
     required this.testId,
     required this.durationSeconds,
@@ -91,6 +173,7 @@ class SensorSummary {
     required this.pidSummaries,
     required this.notableEvents,
     this.skippedPids = const [],
+    this.derivedMetrics,
   });
 
   /// Serialize to a clean text block for the Gemini prompt.
@@ -115,6 +198,14 @@ class SensorSummary {
         final name = PidConstants.nameFor(
             PidConstants.codeForName(pid) ?? pid);
         sb.writeln('  • $pid ($name)');
+      }
+    }
+
+    if (derivedMetrics != null) {
+      sb.writeln('');
+      sb.writeln('--- DERIVED METRICS ---');
+      for (final line in derivedMetrics!.toPromptLines()) {
+        sb.writeln(line);
       }
     }
 

@@ -133,6 +133,8 @@ class SessionRepository {
                 })
             .toList(),
         'skippedPids': s.skippedPids,
+        if (s.derivedMetrics != null)
+          'derivedMetrics': _derivedMetricsToMap(s.derivedMetrics!),
       };
 
   SensorSummary _summaryFromMap(Map<String, dynamic> m) {
@@ -164,8 +166,42 @@ class SessionRepository {
       pidSummaries: pidSummaries,
       notableEvents: events,
       skippedPids: skippedPids,
+      derivedMetrics: m['derivedMetrics'] != null
+          ? _derivedMetricsFromMap(m['derivedMetrics'] as Map<String, dynamic>)
+          : null,
     );
   }
+
+  Map<String, dynamic> _derivedMetricsToMap(DerivedMetrics d) => {
+        'fuelPressureIdleKpa': d.fuelPressureIdleKpa,
+        'fuelPressureLoadKpa': d.fuelPressureLoadKpa,
+        'fuelPressureDropUnderLoadKpa': d.fuelPressureDropUnderLoadKpa,
+        'stftIdlePct': d.stftIdlePct,
+        'stftLoadPct': d.stftLoadPct,
+        'trimDeltaIdleVsLoadStft': d.trimDeltaIdleVsLoadStft,
+        'ltftIdlePct': d.ltftIdlePct,
+        'ltftLoadPct': d.ltftLoadPct,
+        'trimDeltaIdleVsLoadLtft': d.trimDeltaIdleVsLoadLtft,
+        'idleSampleCount': d.idleSampleCount,
+        'loadSampleCount': d.loadSampleCount,
+      };
+
+  DerivedMetrics _derivedMetricsFromMap(Map<String, dynamic> m) => DerivedMetrics(
+        fuelPressureIdleKpa: (m['fuelPressureIdleKpa'] as num?)?.toDouble(),
+        fuelPressureLoadKpa: (m['fuelPressureLoadKpa'] as num?)?.toDouble(),
+        fuelPressureDropUnderLoadKpa:
+            (m['fuelPressureDropUnderLoadKpa'] as num?)?.toDouble(),
+        stftIdlePct: (m['stftIdlePct'] as num?)?.toDouble(),
+        stftLoadPct: (m['stftLoadPct'] as num?)?.toDouble(),
+        trimDeltaIdleVsLoadStft:
+            (m['trimDeltaIdleVsLoadStft'] as num?)?.toDouble(),
+        ltftIdlePct: (m['ltftIdlePct'] as num?)?.toDouble(),
+        ltftLoadPct: (m['ltftLoadPct'] as num?)?.toDouble(),
+        trimDeltaIdleVsLoadLtft:
+            (m['trimDeltaIdleVsLoadLtft'] as num?)?.toDouble(),
+        idleSampleCount: m['idleSampleCount'] as int? ?? 0,
+        loadSampleCount: m['loadSampleCount'] as int? ?? 0,
+      );
 
   Map<String, dynamic> _diagnosisToMap(DiagnosisResult d) => {
         'primaryFault': d.primaryFault,

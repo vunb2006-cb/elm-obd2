@@ -4,6 +4,7 @@ import 'dart:math';
 import '../obd/obd_service.dart';
 import '../obd/pid_constants.dart';
 import '../obd/models/sensor_reading.dart';
+import 'fuel_delivery_analyzer.dart';
 import 'test_library.dart';
 import 'models/sensor_summary.dart';
 
@@ -115,7 +116,11 @@ class TestExecutor {
       totalSamples += entry.value.length;
     }
 
-    final events = _detectNotableEvents(allReadings, startTime);
+    final derived = FuelDeliveryAnalyzer.compute(testId, allReadings);
+    final events = [
+      ..._detectNotableEvents(allReadings, startTime),
+      ...FuelDeliveryAnalyzer.notableEvents(derived),
+    ];
 
     return SensorSummary(
       testId: testId,
@@ -124,6 +129,7 @@ class TestExecutor {
       pidSummaries: pidSummaries,
       notableEvents: events,
       skippedPids: skippedPids,
+      derivedMetrics: derived,
     );
   }
 

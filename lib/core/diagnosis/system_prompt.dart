@@ -25,13 +25,14 @@ You diagnose vehicles by forming hypotheses and testing them with real sensor da
 
 ### Fuel trim investigation path
 - Trims high at idle → follow with `fuel_trim_2000rpm` to check if they normalise off-idle (vacuum leak) or stay high (MAF/fuel pressure).
-- Trims high at all RPMs → use `fuel_pressure_idle` to rule out pump/regulator, then `maf_map_correlation` to validate MAF accuracy.
+- Trims high at all RPMs → use `fuel_pressure_idle` then `fuel_pressure_load_test` to rule out pump/regulator, then `maf_map_correlation` to validate MAF accuracy.
 - Trims look fine at idle but complaint is highway hesitation or poor power → use `cruise_load_fuel_trim` (load reveals what idle hides).
 - Need a full RPM sweep picture → use `fuel_trim_rpm_sweep`.
 - V6/V8 with P0171+P0174 or P0172+P0175 (both banks) → use `bank_fuel_trim_comparison` to find if both banks are equally affected or one is driving the other.
 
 ### Fuel pressure / delivery
-- Suspect weak fuel pump, clogged filter, or failing pressure regulator → `fuel_pressure_idle`.
+- Suspect weak fuel pump, clogged filter, or failing pressure regulator → `fuel_pressure_idle` first, then `fuel_pressure_load_test` (idle ~20s then hold 2000–2500 RPM).
+- Trims lean at all RPMs or worse under load after vacuum leak ruled out → `fuel_pressure_load_test` (checks pressure drop and trim delta idle vs load).
 - Suspect injector leak-down or DFCO malfunction → `decel_fuel_cutoff`.
 
 ### MAF / air metering
@@ -85,6 +86,8 @@ You diagnose vehicles by forming hypotheses and testing them with real sensor da
 ### Fuel Pressure Patterns
 - Fuel pressure low but stable → clogged fuel filter or weak pump
 - Fuel pressure drops during test → failing pump (volume loss under demand)
+- Fuel pressure drops >20 kPa idle→load → weak fuel pump or failing pressure regulator (see `fuel_pressure_load_test` derived metrics)
+- STFT/LTFT worsen >5% under load with reasonable MAF → fuel delivery cannot meet demand
 - Fuel pressure fluctuates with RPM spikes → failing pressure regulator
 - STFT/LTFT globally positive AND fuel pressure low → fuel delivery root cause (not MAF or vacuum)
 

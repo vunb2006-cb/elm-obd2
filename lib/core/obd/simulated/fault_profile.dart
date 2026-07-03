@@ -10,6 +10,7 @@ enum FaultProfile {
   vacuumLeak,
   lazyO2Sensor,
   thermostatStuckOpen,
+  weakFuelPump,
 }
 
 extension FaultProfileInfo on FaultProfile {
@@ -23,6 +24,8 @@ extension FaultProfileInfo on FaultProfile {
         return 'Lazy O2 Sensor (P0133)';
       case FaultProfile.thermostatStuckOpen:
         return 'Thermostat Stuck Open (P0128)';
+      case FaultProfile.weakFuelPump:
+        return 'Weak Fuel Pump (P0171)';
     }
   }
 
@@ -39,6 +42,9 @@ extension FaultProfileInfo on FaultProfile {
       case FaultProfile.thermostatStuckOpen:
         return 'Coolant temp plateaus around 75°C and never reaches normal '
             'operating temperature. Expected diagnosis: thermostat stuck open.';
+      case FaultProfile.weakFuelPump:
+        return 'Fuel pressure sags under load; STFT/LTFT worsen as RPM rises. '
+            'Expected diagnosis: weak fuel pump or fuel delivery fault.';
     }
   }
 
@@ -53,6 +59,8 @@ extension FaultProfileInfo on FaultProfile {
         return const ['P0133'];
       case FaultProfile.thermostatStuckOpen:
         return const ['P0128'];
+      case FaultProfile.weakFuelPump:
+        return const ['P0171'];
     }
   }
 }
