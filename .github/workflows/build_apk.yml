@@ -11,7 +11,7 @@ jobs:
 
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Java JDK
         uses: actions/setup-java@v3
@@ -32,7 +32,7 @@ jobs:
         run: flutter build apk --release --no-tree-shake-icons
 
       - name: Upload APK Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: elm-obd2-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
